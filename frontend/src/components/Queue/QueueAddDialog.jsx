@@ -7,35 +7,33 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { getFormattedYaml } from './helper';
 import axios from 'axios';
+import { toastSuccess, toastError } from '../toast';
 
 export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQueue, namespaces, handleRefresh }) {
-  const [fileName, setFileName] = useState(null);
+  const [file, setFile] = useState(null);
   const [yamlContent, setYamlContent] = useState(null);
   const [yamlContentFormatted, setYamlContentFormatted] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [openSnackbar, setOpenSnackbar] = useState(false);
-  const [errorSnackbar, setErrorSnackbar] = useState(false);
-
   const [selectedNamespace, setSelectedNamespace] = useState('');
 
   const handleCloseDialog = () => {
     setOpenDialogAddQueue(false);
-    setFileName(null);
+    setFile(null);
     setYamlContent(null);
     setIsEditing(false);
   }
 
-  const handleFileUpload = (file) => {
-    if (file) {
-      setFileName(file.name);
+  const handleFileUpload = (fileUploaded) => {
+    if (fileUploaded) {
+      setFile(fileUploaded);
       const reader = new FileReader();
       reader.onload = (event) => {
         const content = event.target.result;
         setYamlContent(content);
         setYamlContentFormatted(getFormattedYaml(content));
       };
-      reader.readAsText(file);
+      reader.readAsText(fileUploaded);
     }
   }
 
@@ -51,8 +49,8 @@ export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQue
   const handleDrop = (e) => {
     e.preventDefault();
     setDragging(false);
-    const file = e.dataTransfer.files[0];
-    handleFileUpload(file);
+    const fileDropped = e.dataTransfer.files[0];
+    handleFileUpload(fileDropped);
   }
 
   const handleEditToggle = () => {
@@ -60,38 +58,30 @@ export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQue
   }
 
   const handleSave = () => {
+    const updatedFile = new File([yamlContent], file.name, { type: file.type });
+    setFile(updatedFile);
     setYamlContentFormatted(getFormattedYaml(yamlContent));
     setIsEditing(false);
   }
 
   const handleRemoveFile = () => {
-    setFileName(null);
+    setFile(null);
     setYamlContent(null);
     setIsEditing(false);
   }
 
 
   const handleCreate = async () => {
-
-    if (!yamlContent || yamlContent.trim() === "") {
-      setErrorSnackbar(true);
-      return;
-    }
-
     try {
-      const response = await axios.post('/api/queues', { yaml: yamlContent });
-
-      if (response.status === 200) {
-        setOpenSnackbar(true);
-      } else {
-        setErrorSnackbar(true);
-      }
-
-      console.log("done");
-
+      const formData = new FormData();
+      formData.append('file', file);
+      await axios.post('/api/queues', formData);
+      toastSuccess("Queue created successfully!");
+      await handleRefresh();
+      handleCloseDialog();
     } catch (error) {
-      console.error("Error saving YAML:", error);
-      setErrorSnackbar(true);
+      console.error("Error saving YAML:", error.message);
+      toastError("Error saving YAML");
     }
   };
 
@@ -133,7 +123,7 @@ export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQue
       </DialogTitle>
       <DialogContent>
         <Stack spacing={2} alignItems="center" width="100%">
-          {!fileName ? (
+          {!file ? (
             <Paper
               elevation={3}
               sx={paperStyles}
@@ -163,13 +153,13 @@ export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQue
           ) : (
             <Paper elevation={2} sx={{ p: 2, width: "100%", borderRadius: '8px', position: 'relative' }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="body2" fontWeight="bold">File: {fileName}</Typography>
+                <Typography variant="body2" fontWeight="bold">File: {file?.name}</Typography>
                 <IconButton size="small" onClick={handleRemoveFile}>
                   <DeleteIcon color="error" />
                 </IconButton>
               </Stack>
               {/* Add namespace dropdown here */}
-              {namespaces.length > 0 && (
+              {/* {namespaces.length > 0 && (
                 <FormControl fullWidth sx={{ mt: 2 }}>
                   <InputLabel id="namespace-select-label">Namespace</InputLabel>
                   <Select
@@ -185,7 +175,7 @@ export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQue
                     ))}
                   </Select>
                 </FormControl>
-              )}
+              )} */}
 
               {isEditing ? (
                 <TextField
@@ -235,10 +225,10 @@ export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQue
           </Button>
         ) : (
           <>
-            {fileName && (
+            {file && (
               <><Button
                 variant="contained"
-                color="primary"
+                color="info"
                 onClick={handleEditToggle}
                 sx={{ minWidth: "100px" }}
                 startIcon={<EditIcon />}
@@ -247,7 +237,7 @@ export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQue
               </Button>
                 <Button
                   variant="contained"
-                  color="primary"
+                  color="success"
                   onClick={handleCreate}
                   sx={{ minWidth: "100px" }}
                 >
@@ -256,7 +246,7 @@ export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQue
               </>)}
             <Button
               variant="contained"
-              color="primary"
+              color="warning"
               onClick={handleCloseDialog}
               sx={{ minWidth: "100px" }}
             >

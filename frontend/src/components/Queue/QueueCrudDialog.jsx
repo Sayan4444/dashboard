@@ -1,10 +1,8 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Dialog, DialogTitle, DialogContent, Box, DialogActions, Button, IconButton, Typography, Stack, Paper, TextField, Snackbar, Alert } from "@mui/material";
+import { Dialog, DialogTitle, DialogContent, Box, DialogActions, Button, IconButton, Typography, Stack, Paper, TextField } from "@mui/material";
 import CloseIcon from '@mui/icons-material/Close';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import DeleteIcon from '@mui/icons-material/Delete';
 import { getFormattedYaml } from './helper';
 import { toastError, toastSuccess } from "../toast"
 import axios from 'axios';
@@ -48,6 +46,10 @@ export default function QueueCrudDialog({ openDialog, setOpenDialog, selectedQue
     }
 
     const handleSave = () => {
+        console.log("Saving file");
+
+        const updatedFile = new File([yamlContent], file?.name, { type: file?.type });
+        setFile(updatedFile);
         setYamlContentFormatted(getFormattedYaml(yamlContent));
         setIsEditing(false);
     }
@@ -63,30 +65,24 @@ export default function QueueCrudDialog({ openDialog, setOpenDialog, selectedQue
         handleCloseDialog();
     }
 
-    const handleApply = async () => {
+    const handleApplyUpdate = async () => {
         try {
             if (!file) {
-                toastError("No file selected");
+                toastError("No file to updated");
                 return;
             }
-
             const formData = new FormData();
             formData.append('file', file);
 
-            const response = await axios.post('/api/upload', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
-            if (response.status === 200) {
-                toastSuccess("File uploaded successfully!");
-            } else {
-                throw new Error('Failed to upload file');
-            }
+            await axios.put('/api/queues', formData);
+            toastSuccess("Queue updated successfully!");
+            await handleRefresh();
+            handleCloseDialog();
         } catch (error) {
-            toastError(error.message);
+            console.error("Error saving YAML:", error.message);
+            toastError("Error saving YAML");
         }
-    }
+    };
 
     const paperStyles = useMemo(() => ({
         p: 2,
@@ -197,7 +193,7 @@ export default function QueueCrudDialog({ openDialog, setOpenDialog, selectedQue
                     <>
                         <Button
                             variant="contained"
-                            color="primary"
+                            color="info"
                             onClick={handleEditToggle}
                             sx={{ minWidth: "100px" }}
                             startIcon={<EditIcon />}
@@ -206,8 +202,8 @@ export default function QueueCrudDialog({ openDialog, setOpenDialog, selectedQue
                         </Button>
                         <Button
                             variant="contained"
-                            color="primary"
-                            onClick={handleApply}
+                            color="success"
+                            onClick={handleApplyUpdate}
                             sx={{ minWidth: "100px" }}
                         >
                             Apply Update
