@@ -1,10 +1,16 @@
 import express from "express";
 import cors from "cors";
-import {CoreV1Api, CustomObjectsApi, KubeConfig,} from "@kubernetes/client-node";
+import { CoreV1Api, CustomObjectsApi, KubeConfig, } from "@kubernetes/client-node";
 import yaml from "js-yaml";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+const storage = multer.memoryStorage()
+const upload = multer({ storage: storage })
 
 const app = express();
-app.use(cors({origin: '*'}));
+app.use(cors({ origin: '*' }));
 
 const kc = new KubeConfig();
 kc.loadFromDefault();
@@ -12,14 +18,17 @@ kc.loadFromDefault();
 const k8sApi = kc.makeApiClient(CustomObjectsApi);
 const k8sCoreApi = kc.makeApiClient(CoreV1Api);
 
+app.use(express.json());
+
 app.get("/api/jobs", async (req, res) => {
+
     try {
         const namespace = req.query.namespace || "";
         const searchTerm = req.query.search || "";
         const queueFilter = req.query.queue || "";
         const statusFilter = req.query.status || "";
 
-        console.log('Fetching jobs with params:', {namespace, searchTerm, queueFilter, statusFilter});
+        console.log('Fetching jobs with params:', { namespace, searchTerm, queueFilter, statusFilter });
 
         let response;
         if (namespace === "" || namespace === "All") {
@@ -75,7 +84,7 @@ app.get("/api/jobs", async (req, res) => {
 // Add an interface to obtain a single job
 app.get("/api/jobs/:namespace/:name", async (req, res) => {
     try {
-        const {namespace, name} = req.params;
+        const { namespace, name } = req.params;
         const response = await k8sApi.getNamespacedCustomObject(
             "batch.volcano.sh",
             "v1alpha1",
@@ -96,7 +105,7 @@ app.get("/api/jobs/:namespace/:name", async (req, res) => {
 // Add a route to obtain YAML in server.js
 app.get("/api/job/:namespace/:name/yaml", async (req, res) => {
     try {
-        const {namespace, name} = req.params;
+        const { namespace, name } = req.params;
         const response = await k8sApi.getNamespacedCustomObject(
             "batch.volcano.sh",
             "v1alpha1",
@@ -135,7 +144,7 @@ app.get("/api/queues/:name", async (req, res) => {
         res.json(response.body);
     } catch (error) {
         console.error("Error fetching queue details:", error);
-        res.status(500).json({error: "Failed to fetch queue details"});
+        res.status(500).json({ error: "Failed to fetch queue details" });
     }
 });
 
@@ -176,7 +185,7 @@ app.get("/api/queues", async (req, res) => {
         const searchTerm = req.query.search || "";
         const stateFilter = req.query.state || "";
 
-        console.log('Fetching queues with params:', {page, limit, searchTerm, stateFilter});
+        console.log('Fetching queues with params:', { page, limit, searchTerm, stateFilter });
 
         const response = await k8sApi.listClusterCustomObject(
             "scheduling.volcano.sh",
@@ -219,6 +228,87 @@ app.get("/api/queues", async (req, res) => {
     }
 });
 
+app.post("/api/queues", upload.single("file"), async (req, res) => {
+    const yamlContent = req.file.buffer.toString("utf8");
+    const crd = yaml.load(yamlContent);
+
+    try {
+        const response = await k8sApi.createClusterCustomObject(
+            "scheduling.volcano.sh",
+            "v1beta1",
+            "queues",
+            crd
+        );
+        console.log("Queue created successfully:", response.body);
+
+        res.json({ message: "YAML saved successfully!" });
+    } catch (error) {
+        console.error("Error creating queue:", error);
+        res.status(500).json({ error: "Failed to create queue" });
+    }
+})
+app.put("/api/queues", upload.single("file"), async (req, res) => {
+    const yamlContent = req.file.buffer.toString("utf8");
+    const crd = yaml.load(yamlContent);
+
+    try {
+        await k8sApi.patchClusterCustomObject(
+            "scheduling.volcano.sh",
+            "v1beta1",
+            "queues",
+            crd.metadata.name,
+            crd,
+            undefined,
+            undefined,
+            undefined,
+            { headers: { "Content-Type": "application/merge-patch+json" } }
+        );
+        res.json({ message: "YAML saved successfully!" });
+    } catch (error) {
+        console.error("Error updating queue:", error.message);
+        res.status(500).json({ error: "Failed to updating queue" });
+    }
+})
+
+app.put("/api/queues/:namespace/:name", async (req, res) => {
+    try {
+        const namespace = req.params.namespace;
+        const queue = req.body;
+
+        const response = await k8sApi.createNamespacedCustomObject(
+            "scheduling.volcano.sh",
+            "v1beta1",
+            namespace,
+            "queues",
+            queue
+        );
+
+        res.json(response.body);
+    } catch (error) {
+        console.error("Error creating queue:", error);
+        res.status(500).json({ error: "Failed to create queue" });
+    }
+})
+
+app.delete("/api/queues/:name", async (req, res) => {
+    try {
+        const name = req.params.name;
+
+        const response = await k8sApi.deleteClusterCustomObject(
+            "scheduling.volcano.sh",
+            "v1beta1",
+            "queues",
+            name
+        );
+
+        res.json(response.body);
+    } catch (error) {
+        console.error("Error deleting queue:", error);
+        res.status(500).json({ error: "Failed to delete queue" });
+    }
+})
+
+
 // get all ns
 app.get("/api/namespaces", async (req, res) => {
     try {
@@ -242,7 +332,7 @@ app.get('/api/pods', async (req, res) => {
         const searchTerm = req.query.search || "";
         const statusFilter = req.query.status || "";
 
-        console.log('Fetching pods with params:', {namespace, searchTerm, statusFilter});
+        console.log('Fetching pods with params:', { namespace, searchTerm, statusFilter });
 
         let response;
         if (
@@ -283,7 +373,7 @@ app.get('/api/pods', async (req, res) => {
 // Get details of a specific Pod
 app.get("/api/pod/:namespace/:name/yaml", async (req, res) => {
     try {
-        const {namespace, name} = req.params;
+        const { namespace, name } = req.params;
         const response = await k8sCoreApi.readNamespacedPod(name, namespace);
 
         // Convert JSON to formatted YAML
@@ -333,7 +423,7 @@ app.get("/api/all-jobs", async (req, res) => {
         });
     } catch (err) {
         console.error("Error fetching all jobs:", err);
-        res.status(500).json({error: "Failed to fetch all jobs"});
+        res.status(500).json({ error: "Failed to fetch all jobs" });
     }
 });
 
@@ -361,7 +451,7 @@ app.get("/api/all-queues", async (req, res) => {
         });
     } catch (error) {
         console.error("Error fetching all queues:", error);
-        res.status(500).json({error: "Failed to fetch all queues"});
+        res.status(500).json({ error: "Failed to fetch all queues" });
     }
 });
 
@@ -375,7 +465,7 @@ app.get("/api/all-pods", async (req, res) => {
         });
     } catch (error) {
         console.error('Error fetching all pods:', error);
-        res.status(500).json({error: 'Failed to fetch all pods'});
+        res.status(500).json({ error: 'Failed to fetch all pods' });
     }
 });
 
