@@ -5,6 +5,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { getFormattedYaml } from './helper';
 
 export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQueue }) {
   const [fileName, setFileName] = useState(null);
@@ -15,28 +16,14 @@ export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQue
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [errorSnackbar, setErrorSnackbar] = useState(false);
 
-  const handleCloseDialog = useCallback(() => {
+  const handleCloseDialog = () => {
     setOpenDialogAddQueue(false);
     setFileName(null);
     setYamlContent(null);
     setIsEditing(false);
-  }, [setOpenDialogAddQueue]);
+  }
 
-  const getFormattedYaml = useCallback((yaml) => {
-    return yaml.split("\n")
-      .map((line) => {
-        const keyMatch = line.match(/^(\s*)([^:\s]+):/);
-        if (keyMatch) {
-          const [, indent, key] = keyMatch;
-          const value = line.slice(keyMatch[0].length);
-          return `${indent}<span class="yaml-key">${key}</span>:${value}`;
-        }
-        return line;
-      })
-      .join("\n");
-  }, []);
-
-  const handleFileUpload = useCallback((file) => {
+  const handleFileUpload = (file) => {
     if (file) {
       setFileName(file.name);
       const reader = new FileReader();
@@ -47,46 +34,46 @@ export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQue
       };
       reader.readAsText(file);
     }
-  }, [getFormattedYaml]);
+  }
 
-  const handleDragOver = useCallback((e) => {
+  const handleDragOver = (e) => {
     e.preventDefault();
     setDragging(true);
-  }, []);
+  }
 
-  const handleDragLeave = useCallback(() => {
+  const handleDragLeave = () => {
     setDragging(false);
-  }, []);
+  }
 
-  const handleDrop = useCallback((e) => {
+  const handleDrop = (e) => {
     e.preventDefault();
     setDragging(false);
     const file = e.dataTransfer.files[0];
     handleFileUpload(file);
-  }, [handleFileUpload]);
+  }
 
-  const handleEditToggle = useCallback(() => {
+  const handleEditToggle = () => {
     setIsEditing(true);
-  }, []);
+  }
 
-  const handleSave = useCallback(() => {
+  const handleSave = () => {
     setYamlContentFormatted(getFormattedYaml(yamlContent));
     setIsEditing(false);
-  }, [yamlContent, getFormattedYaml]);
+  }
 
-  const handleRemoveFile = useCallback(() => {
+  const handleRemoveFile = () => {
     setFileName(null);
     setYamlContent(null);
     setIsEditing(false);
-  }, []);
+  }
 
-  const handleApply = useCallback(() => {
+  const handleApply = () => {
     if (!yamlContent || yamlContent.trim() === "") {
       setErrorSnackbar(true);
       return;
     }
     setOpenSnackbar(true);
-  }, [yamlContent]);
+  }
 
   const paperStyles = useMemo(() => ({
     p: 2,
@@ -209,23 +196,25 @@ export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQue
           </Button>
         ) : (
           <>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleEditToggle}
-              sx={{ minWidth: "100px" }}
-              startIcon={<EditIcon />}
-            >
-              Edit
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleApply}
-              sx={{ minWidth: "100px" }}
-            >
-              Apply
-            </Button>
+            {fileName && (
+              <><Button
+                variant="contained"
+                color="primary"
+                onClick={handleEditToggle}
+                sx={{ minWidth: "100px" }}
+                startIcon={<EditIcon />}
+              >
+                Edit
+              </Button>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleApply}
+                  sx={{ minWidth: "100px" }}
+                >
+                  Update
+                </Button>
+              </>)}
             <Button
               variant="contained"
               color="primary"

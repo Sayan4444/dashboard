@@ -8,7 +8,7 @@ import {
 import Layout from "./components/Layout";
 import Dashboard from "./components/Dashboard";
 import Jobs from "./components/Jobs";
-import Queues from "./components/Queues";
+import Queues from "./components/Queue/Queues";
 import Pods from "./components/Pods";
 import { ThemeProvider } from "@mui/material/styles";
 import { theme } from "./theme"; // import theme
