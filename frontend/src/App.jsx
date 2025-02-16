@@ -12,6 +12,7 @@ import Queues from "./components/Queue/Queues";
 import Pods from "./components/Pods";
 import { ThemeProvider } from "@mui/material/styles";
 import { theme } from "./theme"; // import theme
+import { ToastContainer } from "react-toastify";
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
           </Route>
         </Routes>
       </Router>
+      <ToastContainer />
     </ThemeProvider>
   );
 }

@@ -6,15 +6,16 @@ import SaveIcon from '@mui/icons-material/Save';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { getFormattedYaml } from './helper';
+import { toastError, toastSuccess } from "../toast"
+import axios from 'axios';
 
-export default function QueueCrudDialog({ openDialog, setOpenDialog, selectedQueueName, selectedQueueYaml: yamlContent, setSelectedQueueYaml: setYamlContent }) {
 
-    const [fileName, setFileName] = useState(null);
+export default function QueueCrudDialog({ openDialog, setOpenDialog, selectedQueueName, selectedQueueYaml: yamlContent, setSelectedQueueYaml: setYamlContent, handleRefresh }) {
+
+    const [file, setFile] = useState(null);
     const [yamlContentFormatted, setYamlContentFormatted] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
     const [dragging, setDragging] = useState(false);
-    const [openSnackbar, setOpenSnackbar] = useState(false);
-    const [errorSnackbar, setErrorSnackbar] = useState(false);
 
 
     useEffect(() => {
@@ -24,38 +25,22 @@ export default function QueueCrudDialog({ openDialog, setOpenDialog, selectedQue
 
     const handleCloseDialog = () => {
         setOpenDialog(false);
-        setFileName(null);
+        setFile(null);
         // setYamlContent(null);
         setIsEditing(false);
     }
 
-    const handleFileUpload = (file) => {
-        if (file) {
-            setFileName(file.name);
+    const handleFileUpload = (fileUploaded) => {
+        if (fileUploaded) {
+            setFile(fileUploaded);
             const reader = new FileReader();
             reader.onload = (event) => {
                 const content = event.target.result;
                 setYamlContent(content);
                 setYamlContentFormatted(getFormattedYaml(content));
             };
-            reader.readAsText(file);
+            reader.readAsText(fileUploaded);
         }
-    }
-
-    const handleDragOver = (e) => {
-        e.preventDefault();
-        setDragging(true);
-    }
-
-    const handleDragLeave = () => {
-        setDragging(false);
-    }
-
-    const handleDrop = (e) => {
-        e.preventDefault();
-        setDragging(false);
-        const file = e.dataTransfer.files[0];
-        handleFileUpload(file);
     }
 
     const handleEditToggle = () => {
@@ -67,18 +52,40 @@ export default function QueueCrudDialog({ openDialog, setOpenDialog, selectedQue
         setIsEditing(false);
     }
 
-    const handleRemoveFile = () => {
-        setFileName(null);
-        setYamlContent(null);
-        setIsEditing(false);
+    const handleRemoveFile = async () => {
+        try {
+            await axios.delete(`/api/queues/${selectedQueueName}`);
+            toastSuccess("Queue deleted successfully!");
+        } catch (error) {
+            toastSuccess(error.message);
+        }
+        await handleRefresh();
+        handleCloseDialog();
     }
 
-    const handleApply = () => {
-        if (!yamlContent || yamlContent.trim() === "") {
-            setErrorSnackbar(true);
-            return;
+    const handleApply = async () => {
+        try {
+            if (!file) {
+                toastError("No file selected");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await axios.post('/api/upload', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+            if (response.status === 200) {
+                toastSuccess("File uploaded successfully!");
+            } else {
+                throw new Error('Failed to upload file');
+            }
+        } catch (error) {
+            toastError(error.message);
         }
-        setOpenSnackbar(true);
     }
 
     const paperStyles = useMemo(() => ({
@@ -92,7 +99,6 @@ export default function QueueCrudDialog({ openDialog, setOpenDialog, selectedQue
         border: dragging ? '2px dashed #3f51b5' : '2px dashed #ccc',
         backgroundColor: dragging ? '#f0f0f0' : 'transparent'
     }), [dragging]);
-
     return (
         <Dialog
             open={openDialog}
@@ -122,7 +128,7 @@ export default function QueueCrudDialog({ openDialog, setOpenDialog, selectedQue
                     {(
                         <Paper elevation={2} sx={{ p: 2, width: "100%", borderRadius: '8px', position: 'relative' }}>
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                <Typography variant="body2" fontWeight="bold">File: {fileName}</Typography>
+                                <Typography variant="body2" fontWeight="bold">File: {file?.name}</Typography>
                                 {!isEditing && <Button variant="contained"
                                     color="error" onClick={handleRemoveFile}>Delete
                                 </Button>}
@@ -217,93 +223,6 @@ export default function QueueCrudDialog({ openDialog, setOpenDialog, selectedQue
                     </>
                 )}
             </DialogActions>
-            <Snackbar open={openSnackbar} autoHideDuration={3000} onClose={() => setOpenSnackbar(false)}>
-                <Alert onClose={() => setOpenSnackbar(false)} severity="success" sx={{ width: '100%' }}>
-                    Queue added successfully!
-                </Alert>
-            </Snackbar>
-            <Snackbar open={errorSnackbar} autoHideDuration={3000} onClose={() => setErrorSnackbar(false)}>
-                <Alert onClose={() => setErrorSnackbar(false)} severity="error" sx={{ width: '100%' }}>
-                    YAML content cannot be empty!
-                </Alert>
-            </Snackbar>
         </Dialog>
     );
 }
-
-
-// export default function QueueCrudDialog({ openDialog, setOpenDialog, selectedQueueName, selectedQueueYaml }) {
-//     const handleCloseDialog = () => {
-//         setOpenDialog(false);
-//     }
-//     console.log("sayan", selectedQueueName);
-
-//     return (
-//         <Dialog
-//             open={openDialog}
-//             onClose={handleCloseDialog}
-//             maxWidth={false}
-//             fullWidth
-//             PaperProps={{
-//                 sx: {
-//                     width: "80%",
-//                     maxWidth: "800px",
-//                     maxHeight: "90vh",
-//                     m: 2,
-//                     bgcolor: "background.paper",
-//                 },
-//             }}
-//         >
-//             <DialogTitle>Queue YAML - {selectedQueueName}</DialogTitle>
-//             <DialogContent>
-//                 <Box
-//                     sx={{
-//                         mt: 2,
-//                         mb: 2,
-//                         fontFamily: "monospace",
-//                         fontSize: "1.2rem",
-//                         whiteSpace: "pre-wrap",
-//                         overflow: "auto",
-//                         maxHeight: "calc(90vh - 150px)",
-//                         bgcolor: "grey.50",
-//                         p: 2,
-//                         borderRadius: 1,
-//                         "& .yaml-key": {
-//                             fontWeight: 700,
-//                             color: "#000",
-//                         },
-//                     }}
-//                 >
-//                     <pre dangerouslySetInnerHTML={{ __html: selectedQueueYaml }} />
-//                 </Box>
-//             </DialogContent>
-//             <DialogActions>
-//                 <Box
-//                     sx={{
-//                         display: "flex",
-//                         justifyContent: "flex-end",
-//                         mt: 2,
-//                         width: "100%",
-//                         px: 2,
-//                         pb: 2,
-//                     }}
-//                 >
-//                     <Button
-//                         variant="contained"
-//                         color="primary"
-//                         onClick={handleCloseDialog}
-//                         sx={{
-//                             minWidth: "100px",
-//                             "&:hover": {
-//                                 bgcolor: "primary.dark",
-//                             },
-//                         }}
-//                     >
-//                         Close
-//                     </Button>
-//                 </Box>
-//             </DialogActions>
-//         </Dialog>
-//     )
-// }
-

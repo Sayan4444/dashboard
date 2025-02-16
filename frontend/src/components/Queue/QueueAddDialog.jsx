@@ -1,13 +1,14 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { Dialog, DialogTitle, DialogContent, Box, DialogActions, Button, IconButton, Typography, Stack, Paper, TextField, Snackbar, Alert } from "@mui/material";
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { Dialog, DialogTitle, DialogContent, Box, DialogActions, Button, IconButton, Typography, Stack, Paper, TextField, Snackbar, Alert, FormControl, InputLabel, Select, MenuItem } from "@mui/material";
 import CloseIcon from '@mui/icons-material/Close';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { getFormattedYaml } from './helper';
+import axios from 'axios';
 
-export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQueue }) {
+export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQueue, namespaces, handleRefresh }) {
   const [fileName, setFileName] = useState(null);
   const [yamlContent, setYamlContent] = useState(null);
   const [yamlContentFormatted, setYamlContentFormatted] = useState(null);
@@ -15,6 +16,8 @@ export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQue
   const [dragging, setDragging] = useState(false);
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [errorSnackbar, setErrorSnackbar] = useState(false);
+
+  const [selectedNamespace, setSelectedNamespace] = useState('');
 
   const handleCloseDialog = () => {
     setOpenDialogAddQueue(false);
@@ -67,13 +70,30 @@ export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQue
     setIsEditing(false);
   }
 
-  const handleApply = () => {
+
+  const handleCreate = async () => {
+
     if (!yamlContent || yamlContent.trim() === "") {
       setErrorSnackbar(true);
       return;
     }
-    setOpenSnackbar(true);
-  }
+
+    try {
+      const response = await axios.post('/api/queues', { yaml: yamlContent });
+
+      if (response.status === 200) {
+        setOpenSnackbar(true);
+      } else {
+        setErrorSnackbar(true);
+      }
+
+      console.log("done");
+
+    } catch (error) {
+      console.error("Error saving YAML:", error);
+      setErrorSnackbar(true);
+    }
+  };
 
   const paperStyles = useMemo(() => ({
     p: 2,
@@ -148,6 +168,25 @@ export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQue
                   <DeleteIcon color="error" />
                 </IconButton>
               </Stack>
+              {/* Add namespace dropdown here */}
+              {namespaces.length > 0 && (
+                <FormControl fullWidth sx={{ mt: 2 }}>
+                  <InputLabel id="namespace-select-label">Namespace</InputLabel>
+                  <Select
+                    labelId="namespace-select-label"
+                    value={selectedNamespace}
+                    label="Namespace"
+                    onChange={(e) => setSelectedNamespace(e.target.value)}
+                  >
+                    {namespaces.map((namespace) => (
+                      <MenuItem key={namespace} value={namespace}>
+                        {namespace}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+
               {isEditing ? (
                 <TextField
                   fullWidth
@@ -209,10 +248,10 @@ export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQue
                 <Button
                   variant="contained"
                   color="primary"
-                  onClick={handleApply}
+                  onClick={handleCreate}
                   sx={{ minWidth: "100px" }}
                 >
-                  Update
+                  Create
                 </Button>
               </>)}
             <Button
@@ -226,16 +265,6 @@ export default function QueueAddDialog({ openDialogAddQueue, setOpenDialogAddQue
           </>
         )}
       </DialogActions>
-      <Snackbar open={openSnackbar} autoHideDuration={3000} onClose={() => setOpenSnackbar(false)}>
-        <Alert onClose={() => setOpenSnackbar(false)} severity="success" sx={{ width: '100%' }}>
-          Queue added successfully!
-        </Alert>
-      </Snackbar>
-      <Snackbar open={errorSnackbar} autoHideDuration={3000} onClose={() => setErrorSnackbar(false)}>
-        <Alert onClose={() => setErrorSnackbar(false)} severity="error" sx={{ width: '100%' }}>
-          YAML content cannot be empty!
-        </Alert>
-      </Snackbar>
     </Dialog>
   );
 }

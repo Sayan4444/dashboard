@@ -51,11 +51,21 @@ const Queues = () => {
     });
     const [totalQueues, setTotalQueues] = useState(0);
     const [sortDirection, setSortDirection] = useState("desc");
+    const [namespaces, setNamespaces] = useState([]);
 
     const [sortConfig, setSortConfig] = useState({
         field: null,
         direction: "asc",
     });
+
+    useEffect(() => {
+        const fetchAllNamespaces = async () => {
+            const response = await axios.get('/api/namespaces');
+            const names = response.data.items.map((namespace) => namespace.metadata.name);
+            setNamespaces(names);
+        }
+        fetchAllNamespaces();
+    }, [])
 
     const fetchQueues = useCallback(async () => {
         setLoading(true);
@@ -228,8 +238,8 @@ const Queues = () => {
 
     return (
         <>
-            <QueueAddDialog openDialogAddQueue={openDialogAddQueue} setOpenDialogAddQueue={setOpenDialogAddQueue} />
-            <QueueCrudDialog openDialog={openDialog} setOpenDialog={setOpenDialog} selectedQueueName={selectedQueueName} selectedQueueYaml={selectedQueueYaml} setSelectedQueueYaml={setSelectedQueueYaml} />
+            <QueueAddDialog openDialogAddQueue={openDialogAddQueue} setOpenDialogAddQueue={setOpenDialogAddQueue} namespaces={namespaces} handleRefresh={handleRefresh} />
+            <QueueCrudDialog openDialog={openDialog} setOpenDialog={setOpenDialog} selectedQueueName={selectedQueueName} selectedQueueYaml={selectedQueueYaml} setSelectedQueueYaml={setSelectedQueueYaml} handleRefresh={handleRefresh} />
             <Box sx={{ bgcolor: "background.default", minHeight: "100vh", p: 3 }}>
                 {error && (
                     <Box sx={{ mt: 2, color: theme.palette.error.main }}>
