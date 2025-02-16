@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useMemo, useState} from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Box,
     Button,
@@ -23,9 +23,10 @@ import {
     Typography,
     useTheme,
 } from "@mui/material";
-import {ArrowDownward, ArrowUpward, Clear, Error, FilterList, Refresh, Search, UnfoldMore} from "@mui/icons-material";
+import { ArrowDownward, ArrowUpward, Clear, Error, FilterList, Refresh, Search, UnfoldMore, Add } from "@mui/icons-material";
 import axios from "axios";
-import {parseCPU, parseMemoryToMi} from "./utils";
+import { parseCPU, parseMemoryToMi } from "./utils";
+import QueueAddDialog from "./QueueAddDialog"
 
 const Queues = () => {
     const [queues, setQueues] = useState([]);
@@ -36,6 +37,7 @@ const Queues = () => {
     });
     const [selectedQueueYaml, setSelectedQueueYaml] = useState("");
     const [openDialog, setOpenDialog] = useState(false);
+    const [openDialogAddQueue, setOpenDialogAddQueue] = useState(false);
     const [anchorEl, setAnchorEl] = useState({
         status: null,
     });
@@ -92,17 +94,17 @@ const Queues = () => {
 
     const handleSearch = (event) => {
         setSearchText(event.target.value);
-        setPagination((prev) => ({...prev, page: 1}));
+        setPagination((prev) => ({ ...prev, page: 1 }));
     };
 
     const handleClearSearch = () => {
         setSearchText("");
-        setPagination((prev) => ({...prev, page: 1}));
+        setPagination((prev) => ({ ...prev, page: 1 }));
         fetchQueues();
     };
 
     const handleRefresh = useCallback(() => {
-        setPagination((prev) => ({...prev, page: 1}));
+        setPagination((prev) => ({ ...prev, page: 1 }));
         setSearchText("");
         fetchQueues();
     }, [fetchQueues]);
@@ -112,7 +114,7 @@ const Queues = () => {
             setLoading(true);
             const response = await axios.get(
                 `/api/queue/${queue.metadata.name}/yaml`,
-                {responseType: "text"}
+                { responseType: "text" }
             );
 
             const formattedYaml = response.data
@@ -144,11 +146,11 @@ const Queues = () => {
     }, []);
 
     const handleChangePage = useCallback((event, newPage) => {
-        setPagination((prev) => ({...prev, page: newPage}));
+        setPagination((prev) => ({ ...prev, page: newPage }));
     }, []);
 
     const handleChangeRowsPerPage = useCallback((event) => {
-        setPagination((prev) => ({...prev, rowsPerPage: parseInt(event.target.value, 10), page: 1}));
+        setPagination((prev) => ({ ...prev, rowsPerPage: parseInt(event.target.value, 10), page: 1 }));
     }, []);
 
     const getStateColor = useCallback((status) => {
@@ -165,13 +167,13 @@ const Queues = () => {
     }, [theme]);
 
     const handleFilterClick = useCallback((filterType, event) => {
-        setAnchorEl((prev) => ({...prev, [filterType]: event.currentTarget}));
+        setAnchorEl((prev) => ({ ...prev, [filterType]: event.currentTarget }));
     }, []);
 
     const handleFilterClose = useCallback((filterType, value) => {
-        setFilters((prev) => ({...prev, [filterType]: value}));
-        setAnchorEl((prev) => ({...prev, [filterType]: null}));
-        setPagination((prev) => ({...prev, page: 1}));
+        setFilters((prev) => ({ ...prev, [filterType]: value }));
+        setAnchorEl((prev) => ({ ...prev, [filterType]: null }));
+        setPagination((prev) => ({ ...prev, page: 1 }));
     }, [fetchQueues]);
 
     const uniqueStates = useMemo(() => {
@@ -240,9 +242,9 @@ const Queues = () => {
     }, [queues]);
 
     return (
-        <Box sx={{bgcolor: "background.default", minHeight: "100vh", p: 3}}>
+        <Box sx={{ bgcolor: "background.default", minHeight: "100vh", p: 3 }}>
             {error && (
-                <Box sx={{mt: 2, color: theme.palette.error.main}}>
+                <Box sx={{ mt: 2, color: theme.palette.error.main }}>
                     <Typography variant="body1">{error}</Typography>
                 </Box>
             )}
@@ -256,7 +258,7 @@ const Queues = () => {
                     mb: 2
                 }}
             >
-                <Box sx={{display: "flex", gap: 1, alignItems: "center"}}>
+                <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
                     <TextField
                         placeholder="Search queues"
                         variant="outlined"
@@ -268,9 +270,9 @@ const Queues = () => {
                                 <IconButton
                                     size="small"
                                     onClick={handleClearSearch}
-                                    sx={{padding: "4px"}}
+                                    sx={{ padding: "4px" }}
                                 >
-                                    <Clear/>
+                                    <Clear />
                                 </IconButton>
                             ),
                         }}
@@ -279,35 +281,46 @@ const Queues = () => {
                         variant="contained"
                         color="primary"
                         onClick={() => fetchQueues()}
-                        startIcon={<Search/>}
+                        startIcon={<Search />}
                     >
                         SEARCH BY QUEUE NAME
                     </Button>
                 </Box>
-                <Button
-                    variant="contained"
-                    color="primary"
-                    startIcon={<Refresh/>}
-                    onClick={handleRefresh}
-                >
-                    Refresh Queue Status
-                </Button>
+                <Box sx={{ display: "flex", gap: 1 }}>
+                    <Button
+                        variant="contained"
+                        color="info"
+                        startIcon={<Add />}
+                        onClick={() => setOpenDialogAddQueue(true)}
+                    >
+                        Add Queue
+                    </Button>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        startIcon={<Refresh />}
+                        onClick={handleRefresh}
+                    >
+                        Refresh Queue Status
+                    </Button>
+                </Box>
+
             </Box>
             <TableContainer
                 component={Paper}
-                sx={{maxHeight: "calc(100vh - 200px)", overflow: "auto"}}
+                sx={{ maxHeight: "calc(100vh - 200px)", overflow: "auto" }}
             >
                 <Table stickyHeader>
                     <TableHead>
                         <TableRow>
-                            <TableCell sx={{backgroundColor: "background.paper", padding: "8px 16px", minWidth: 120}}>
+                            <TableCell sx={{ backgroundColor: "background.paper", padding: "8px 16px", minWidth: 120 }}>
                                 <Typography variant="h6">Name</Typography>
                             </TableCell>
 
                             {/* get allocated field dynamically */}
                             {allocatedFields.map((field) => (
                                 <TableCell key={field}>
-                                    <Box sx={{display: "flex", alignItems: "center"}}>
+                                    <Box sx={{ display: "flex", alignItems: "center" }}>
                                         <Typography variant="h6">{`Allocated ${field}`}</Typography>
                                         <IconButton
                                             size="small"
@@ -315,51 +328,51 @@ const Queues = () => {
                                         >
                                             {sortConfig.field === field ? (
                                                 sortConfig.direction === "asc" ? (
-                                                    <ArrowUpward/>
+                                                    <ArrowUpward />
                                                 ) : (
-                                                    <ArrowDownward/>
+                                                    <ArrowDownward />
                                                 )
                                             ) : (
-                                                <UnfoldMore/>
+                                                <UnfoldMore />
                                             )}
                                         </IconButton>
                                     </Box>
                                 </TableCell>
                             ))}
 
-                            <TableCell sx={{backgroundColor: "background.paper", padding: "8px 16px", minWidth: 120}}>
+                            <TableCell sx={{ backgroundColor: "background.paper", padding: "8px 16px", minWidth: 120 }}>
                                 <Typography variant="h6">Creation Time</Typography>
                                 <Button
                                     size="small"
                                     onClick={() => handleSort("creationTime")}
                                     startIcon={sortConfig.field === "creationTime" ? (
                                         sortConfig.direction === "asc" ? (
-                                            <ArrowUpward/>
+                                            <ArrowUpward />
                                         ) : (
-                                            <ArrowDownward/>
+                                            <ArrowDownward />
                                         )
                                     ) : (
-                                        <UnfoldMore/>
+                                        <UnfoldMore />
                                     )}
-                                    sx={{textTransform: "none", padding: 0, minWidth: "auto"}}
+                                    sx={{ textTransform: "none", padding: 0, minWidth: "auto" }}
                                 >
                                     Sort
                                 </Button>
                             </TableCell>
-                            <TableCell sx={{backgroundColor: "background.paper", padding: "8px 16px", minWidth: 120}}>
+                            <TableCell sx={{ backgroundColor: "background.paper", padding: "8px 16px", minWidth: 120 }}>
                                 <Typography variant="h6">State</Typography>
                                 <Button
                                     size="small"
-                                    startIcon={<FilterList/>}
+                                    startIcon={<FilterList />}
                                     onClick={(e) => handleFilterClick("status", e)}
-                                    sx={{textTransform: "none", padding: 0, minWidth: "auto"}}
+                                    sx={{ textTransform: "none", padding: 0, minWidth: "auto" }}
                                 >
                                     Filter: {filters.status}
                                 </Button>
                                 <Menu
                                     anchorEl={anchorEl.status}
                                     open={Boolean(anchorEl.status)}
-                                    onClose={() => setAnchorEl((prev) => ({...prev, status: null}))}
+                                    onClose={() => setAnchorEl((prev) => ({ ...prev, status: null }))}
                                 >
                                     {uniqueStates.map((status) => (
                                         <MenuItem key={status} onClick={() => handleFilterClose("status", status)}>
@@ -378,7 +391,7 @@ const Queues = () => {
                                     key={queue.metadata.name}
                                     onClick={() => handleQueueClick(queue)}
                                     sx={{
-                                        "&:nth-of-type(odd)": {bgcolor: "action.hover"},
+                                        "&:nth-of-type(odd)": { bgcolor: "action.hover" },
                                         "&:hover": {
                                             bgcolor: "action.hover",
                                             color: "primary.main",
@@ -407,7 +420,7 @@ const Queues = () => {
                                     </TableCell>
                                 </TableRow>
                             ))}
-                    < /TableBody>
+                    </TableBody>
                 </Table>
             </TableContainer>
             <Box
@@ -428,8 +441,8 @@ const Queues = () => {
                     <MenuItem value={20}>20 per page</MenuItem>
                 </Select>
                 <Box
-                    sx={{display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2, mb: 2}}>
-                    <Typography variant="body2" sx={{mr: 2}}>
+                    sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 2, mb: 2 }}>
+                    <Typography variant="body2" sx={{ mr: 2 }}>
                         Total Queues: {totalQueues}
                     </Typography>
                     <Pagination
@@ -443,6 +456,7 @@ const Queues = () => {
                 </Box>
             </Box>
 
+            <QueueAddDialog openDialogAddQueue={openDialogAddQueue} setOpenDialogAddQueue={setOpenDialogAddQueue} />
             <Dialog
                 open={openDialog}
                 onClose={handleCloseDialog}
@@ -478,7 +492,7 @@ const Queues = () => {
                             },
                         }}
                     >
-                        <pre dangerouslySetInnerHTML={{__html: selectedQueueYaml}}/>
+                        <pre dangerouslySetInnerHTML={{ __html: selectedQueueYaml }} />
                     </Box>
                 </DialogContent>
                 <DialogActions>
